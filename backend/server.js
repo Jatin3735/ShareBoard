@@ -10,7 +10,7 @@ const app = express();
 
 // ✅ FIXED CORS CONFIGURATION
 const allowedOrigins = [
-  'https://shareboard-frontend.netlify.app',
+  'https://online-shareboard.netlify.app',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
