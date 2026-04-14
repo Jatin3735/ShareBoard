@@ -133,9 +133,9 @@ function ViewNote() {
             whileTap={{ scale: 0.95 }}
             onClick={fetchNote}
             disabled={code.length !== 6 || loading}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center ${
               code.length === 6 && !loading
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50 '
                 : 'bg-white/20 text-white/50 cursor-not-allowed'
             }`}
           >
