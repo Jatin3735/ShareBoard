@@ -2,7 +2,7 @@
 
 ## 🌟 Live Demo
 
-**Frontend:** https://shareboard-frontend.netlify.app
+**Frontend:** https://online-shareboard.netlify.app
 
 **Backend API:** https://shareboard-backend-qd91.onrender.com
 
