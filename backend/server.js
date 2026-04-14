@@ -8,11 +8,12 @@ const audioRoutes = require('./routes/audio');
 
 const app = express();
 
-// CORS configuration for production
+// CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || '*',
   credentials: true
 }));
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -20,6 +21,11 @@ app.use('/uploads', express.static('uploads'));
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
+
+// ✅ ADD THIS HEALTH ENDPOINT
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
 
 // Routes
 app.use('/api/audio', audioRoutes);
