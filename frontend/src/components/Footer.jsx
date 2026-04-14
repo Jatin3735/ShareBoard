@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion';
-
+import { FaGithub } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
+import { FaLinkedin } from "react-icons/fa";
+import { TfiEmail } from "react-icons/tfi";
 function Footer() {
   const currentYear = new Date().getFullYear();
 
@@ -11,10 +14,10 @@ function Footer() {
   ];
 
   const socialLinks = [
-    { name: "GitHub", icon: "🐙", url: "https://github.com/jatin3735" },
-    { name: "Twitter", icon: "🐦", url: "https://twitter.com/yourhandle" },
-    { name: "LinkedIn", icon: "🔗", url: "https://linkedin.com/in/jatin-jangra-hhjjiss" },
-    { name: "Email", icon: "📧", url: "mailto:team@audioboard.com" },
+    { name: "GitHub", icon: <FaGithub />, url: "https://github.com/jatin3735" },
+    { name: "Twitter", icon: <FaXTwitter />, url: "https://twitter.com/yourhandle" },
+    { name: "LinkedIn", icon: <FaLinkedin />, url: "https://linkedin.com/in/jatin-jangra-hhjjiss" },
+    { name: "Email", icon: <TfiEmail />, url: "mailto:jatinjangra514@gmail.com" },
   ];
 
   return (
