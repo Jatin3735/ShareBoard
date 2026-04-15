@@ -39,15 +39,35 @@ const noteSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // NEW: Password protection
+  password: {
+    type: String,
+    default: null
+  },
+  isProtected: {
+    type: Boolean,
+    default: false
+  },
+  // NEW: Custom expiry
+  expiryHours: {
+    type: Number,
+    default: 24
+  },
+  expiresAt: {
+    type: Date,
+    default: () => new Date(+new Date() + 24*60*60*1000)
+  },
   createdAt: {
     type: Date,
-    default: Date.now,
-    expires: 86400  // Auto-delete after 24 hours
+    default: Date.now
   },
   views: {
     type: Number,
     default: 0
   }
 });
+
+// Auto-delete expired notes (runs every minute)
+noteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Note', noteSchema);
