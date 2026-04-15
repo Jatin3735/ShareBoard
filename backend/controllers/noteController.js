@@ -162,11 +162,16 @@ exports.getNoteByCode = async (req, res) => {
     const { code } = req.params;
     const { password } = req.query;
     
+    console.log(`🔍 Fetching note: ${code}`);
+    
     const note = await Note.findOne({ code: code.toUpperCase() });
 
     if (!note) {
       return res.status(404).json({ error: 'No content found with this code' });
     }
+
+    console.log(`📝 Note type: ${note.type}`);
+    console.log(`📁 File path in DB: ${note.filepath}`);
 
     // Check if note is expired
     if (note.expiresAt < new Date()) {
@@ -196,26 +201,82 @@ exports.getNoteByCode = async (req, res) => {
     note.views += 1;
     await note.save();
 
-    // If it's audio, send the file
+    // Handle audio files
     if (note.type === 'audio') {
-      return res.sendFile(path.resolve(note.filepath));
+      // Try multiple possible paths
+      let filePath = null;
+      const possiblePaths = [
+        note.filepath,  // Original path from DB
+        path.join(__dirname, '..', note.filepath),  // Relative from controllers
+        path.join(__dirname, '..', 'uploads', note.filename),  // Uploads folder
+        path.join(__dirname, '..', 'notes', note.filename),  // Notes folder
+        path.join(__dirname, '..', 'uploads', note.filepath),  // Full uploads path
+      ];
+      
+      for (const tryPath of possiblePaths) {
+        const resolvedPath = path.resolve(tryPath);
+        console.log(`🔍 Trying path: ${resolvedPath}`);
+        if (fs.existsSync(resolvedPath)) {
+          filePath = resolvedPath;
+          console.log(`✅ Found audio file at: ${filePath}`);
+          break;
+        }
+      }
+      
+      if (filePath && fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      } else {
+        console.log(`❌ Audio file not found for code: ${code}`);
+        return res.status(404).json({ 
+          error: 'Audio file not found',
+          debug: {
+            dbPath: note.filepath,
+            filename: note.filename,
+            searchedPaths: possiblePaths
+          }
+        });
+      }
     }
     
-    // If it's image, send the actual image file
+    // Handle image files
     if (note.type === 'image') {
-      return res.sendFile(path.resolve(note.filepath));
+      let filePath = null;
+      const possiblePaths = [
+        note.filepath,
+        path.join(__dirname, '..', note.filepath),
+        path.join(__dirname, '..', 'uploads', note.filename),
+      ];
+      
+      for (const tryPath of possiblePaths) {
+        const resolvedPath = path.resolve(tryPath);
+        if (fs.existsSync(resolvedPath)) {
+          filePath = resolvedPath;
+          break;
+        }
+      }
+      
+      if (filePath && fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      } else {
+        return res.status(404).json({ error: 'Image file not found' });
+      }
     }
     
-    // If it's text, return the content
-    res.json({
-      type: 'text',
-      content: note.textContent,
-      createdAt: note.createdAt,
-      views: note.views,
-      expiresAt: note.expiresAt
-    });
+    // Handle text notes
+    if (note.type === 'text') {
+      return res.json({
+        type: 'text',
+        content: note.textContent,
+        createdAt: note.createdAt,
+        views: note.views,
+        expiresAt: note.expiresAt
+      });
+    }
+    
+    return res.status(400).json({ error: 'Unknown note type' });
+    
   } catch (error) {
-    console.error(error);
+    console.error('Error in getNoteByCode:', error);
     res.status(500).json({ error: 'Failed to retrieve content' });
   }
 };
