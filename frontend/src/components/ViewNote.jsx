@@ -17,89 +17,109 @@ function ViewNote() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  const fetchNote = async (providedPassword = null) => {
-    if (!code || code.length !== 6) {
-      setError('Please enter a valid 6-character code');
+const fetchNote = async (providedPassword = null) => {
+  if (!code || code.length !== 6) {
+    setError('Please enter a valid 6-character code');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+  setNoteData(null);
+  setAudioUrl(null);
+  if (imageBlobUrl) {
+    URL.revokeObjectURL(imageBlobUrl);
+    setImageBlobUrl(null);
+  }
+  setNoteType(null);
+  setShowPasswordInput(false);
+
+  try {
+    const url = providedPassword 
+      ? `${API_URL}/audio/${code}?password=${encodeURIComponent(providedPassword)}`
+      : `${API_URL}/audio/${code}`;
+    
+    const response = await axios.get(url, {
+      responseType: 'blob'
+    });
+    
+    const contentType = response.headers['content-type'];
+    
+    // Handle text response (JSON)
+    if (contentType && contentType.includes('application/json')) {
+      const text = await response.data.text();
+      const data = JSON.parse(text);
+      
+      if (data.type === 'text') {
+        setNoteType('text');
+        setNoteData(data);
+      }
       return;
     }
-
-    setLoading(true);
-    setError('');
-    setNoteData(null);
-    setAudioUrl(null);
-    if (imageBlobUrl) {
-      URL.revokeObjectURL(imageBlobUrl);
-      setImageBlobUrl(null);
+    
+    // Handle image
+    if (contentType && contentType.startsWith('image/')) {
+      setNoteType('image');
+      const blobUrl = URL.createObjectURL(response.data);
+      setImageBlobUrl(blobUrl);
+      
+      try {
+        const infoResponse = await axios.get(`${API_URL}/audio/info/${code}`);
+        setNoteData(infoResponse.data);
+      } catch (err) {
+        console.error('Failed to fetch metadata:', err);
+      }
+      return;
     }
-    setNoteType(null);
-    setShowPasswordInput(false);
-
-    try {
-      const url = providedPassword 
-        ? `${API_URL}/audio/${code}?password=${encodeURIComponent(providedPassword)}`
-        : `${API_URL}/audio/${code}`;
-      
-      const response = await axios.get(url, {
-        responseType: 'blob' // Important for images and audio
-      });
-      
-      // Get content type from response headers
-      const contentType = response.headers['content-type'];
-      
-      // Handle text response (JSON)
-      if (contentType && contentType.includes('application/json')) {
-        // Convert blob to text to parse JSON
-        const text = await response.data.text();
-        const data = JSON.parse(text);
-        
-        if (data.type === 'text') {
-          setNoteType('text');
-          setNoteData(data);
-        }
-        return;
-      }
-      
-      // Handle image
-      if (contentType && contentType.startsWith('image/')) {
-        setNoteType('image');
-        const blobUrl = URL.createObjectURL(response.data);
-        setImageBlobUrl(blobUrl);
-        
-        // Also fetch metadata separately
-        try {
-          const infoResponse = await axios.get(`${API_URL}/audio/info/${code}`);
-          setNoteData(infoResponse.data);
-        } catch (err) {
-          console.error('Failed to fetch metadata:', err);
-        }
-        return;
-      }
-      
-      // Handle audio
-      if (contentType && contentType.startsWith('audio/')) {
-        setNoteType('audio');
-        const blobUrl = URL.createObjectURL(response.data);
-        setAudioUrl(blobUrl);
-        return;
-      }
-      
-    } catch (error) {
-      console.error('Fetch error:', error);
-      
-      if (error.response?.status === 401 && error.response?.data?.requiresPassword) {
-        setShowPasswordInput(true);
-        setError('This note is password protected. Please enter the password.');
-      } else if (error.response?.status === 410) {
-        setError('This note has expired and is no longer available.');
-      } else if (error.response?.status === 404) {
-        setError('No content found with this code. Please check and try again.');
-      } else {
-        setError('Failed to load note. Please try again.');
-      }
-    } finally {
-      setLoading(false);
+    
+    // Handle audio
+    if (contentType && contentType.startsWith('audio/')) {
+      setNoteType('audio');
+      const blobUrl = URL.createObjectURL(response.data);
+      setAudioUrl(blobUrl);
+      return;
     }
-  };
+    
+  } catch (error) {
+    console.error('Fetch error:', error);
+    
+    // ✅ FIX: Check if error response exists and has data
+    if (error.response) {
+      // Try to read the error response as JSON
+      try {
+        const errorText = await error.response.data.text();
+        const errorData = JSON.parse(errorText);
+        
+        if (error.response.status === 401 && errorData.requiresPassword) {
+          setShowPasswordInput(true);
+          setError('This note is password protected. Please enter the password.');
+        } else if (error.response.status === 410) {
+          setError('This note has expired and is no longer available.');
+        } else if (error.response.status === 404) {
+          setError('No content found with this code. Please check and try again.');
+        } else {
+          setError(errorData.error || 'Failed to load note. Please try again.');
+        }
+      } catch (parseError) {
+        // If can't parse JSON, use status code
+        if (error.response.status === 401) {
+          setShowPasswordInput(true);
+          setError('This note is password protected. Please enter the password.');
+        } else if (error.response.status === 410) {
+          setError('This note has expired and is no longer available.');
+        } else if (error.response.status === 404) {
+          setError('No content found with this code. Please check and try again.');
+        } else {
+          setError('Failed to load note. Please try again.');
+        }
+      }
+    } else {
+      setError('Network error. Please check your connection.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePasswordSubmit = () => {
     if (!password) {
