@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Loader, AlertCircle, Headphones, FileText, Image, Volume2, Download, Lock, Unlock } from 'lucide-react';
+import { Play, Loader, AlertCircle, Headphones, FileText, Image, Volume2, Download, Lock } from 'lucide-react';
 import axios from 'axios';
 
 function ViewNote() {
@@ -9,10 +9,11 @@ function ViewNote() {
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [noteData, setNoteData] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
-  const [imageUrl, setImageUrl] = useState(null);
+  const [imageBlobUrl, setImageBlobUrl] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [noteType, setNoteType] = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -26,7 +27,10 @@ function ViewNote() {
     setError('');
     setNoteData(null);
     setAudioUrl(null);
-    setImageUrl(null);
+    if (imageBlobUrl) {
+      URL.revokeObjectURL(imageBlobUrl);
+      setImageBlobUrl(null);
+    }
     setNoteType(null);
     setShowPasswordInput(false);
 
@@ -35,30 +39,62 @@ function ViewNote() {
         ? `${API_URL}/audio/${code}?password=${encodeURIComponent(providedPassword)}`
         : `${API_URL}/audio/${code}`;
       
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        responseType: 'blob' // Important for images and audio
+      });
       
-      // Handle response based on type
-      if (response.data.type === 'text') {
-        setNoteType('text');
-        setNoteData(response.data);
-      } else if (response.data.type === 'image') {
-        setNoteType('image');
-        setImageUrl(`${API_URL}${response.data.imageUrl}`);
-        setNoteData(response.data);
-      } else {
-        // It's audio (file response)
-        setNoteType('audio');
-        const audioUrl = `${API_URL}/audio/${code}${providedPassword ? `?password=${encodeURIComponent(providedPassword)}` : ''}`;
-        setAudioUrl(audioUrl);
+      // Get content type from response headers
+      const contentType = response.headers['content-type'];
+      
+      // Handle text response (JSON)
+      if (contentType && contentType.includes('application/json')) {
+        // Convert blob to text to parse JSON
+        const text = await response.data.text();
+        const data = JSON.parse(text);
+        
+        if (data.type === 'text') {
+          setNoteType('text');
+          setNoteData(data);
+        }
+        return;
       }
+      
+      // Handle image
+      if (contentType && contentType.startsWith('image/')) {
+        setNoteType('image');
+        const blobUrl = URL.createObjectURL(response.data);
+        setImageBlobUrl(blobUrl);
+        
+        // Also fetch metadata separately
+        try {
+          const infoResponse = await axios.get(`${API_URL}/audio/info/${code}`);
+          setNoteData(infoResponse.data);
+        } catch (err) {
+          console.error('Failed to fetch metadata:', err);
+        }
+        return;
+      }
+      
+      // Handle audio
+      if (contentType && contentType.startsWith('audio/')) {
+        setNoteType('audio');
+        const blobUrl = URL.createObjectURL(response.data);
+        setAudioUrl(blobUrl);
+        return;
+      }
+      
     } catch (error) {
+      console.error('Fetch error:', error);
+      
       if (error.response?.status === 401 && error.response?.data?.requiresPassword) {
         setShowPasswordInput(true);
         setError('This note is password protected. Please enter the password.');
       } else if (error.response?.status === 410) {
         setError('This note has expired and is no longer available.');
-      } else {
+      } else if (error.response?.status === 404) {
         setError('No content found with this code. Please check and try again.');
+      } else {
+        setError('Failed to load note. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -80,6 +116,11 @@ function ViewNote() {
     if (error) setError('');
     setShowPasswordInput(false);
     setPassword('');
+    if (imageBlobUrl) {
+      URL.revokeObjectURL(imageBlobUrl);
+      setImageBlobUrl(null);
+    }
+    setAudioUrl(null);
   };
 
   const handleKeyPress = (e) => {
@@ -89,27 +130,33 @@ function ViewNote() {
   };
 
   const downloadImage = async () => {
-    if (imageUrl) {
-      try {
-        const response = await axios.get(imageUrl, {
-          responseType: 'blob'
-        });
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `shareboard-${code}.jpg`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error('Download failed:', error);
-        alert('Failed to download image');
-      }
+    if (!imageBlobUrl) return;
+    
+    setDownloading(true);
+    try {
+      // Fetch the image with proper authentication
+      const passwordParam = password ? `?password=${encodeURIComponent(password)}` : '';
+      const response = await axios.get(`${API_URL}/audio/${code}${passwordParam}`, {
+        responseType: 'blob'
+      });
+      
+      const blob = response.data;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `shareboard-${code}.jpg`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download image. Please try again.');
+    } finally {
+      setDownloading(false);
     }
   };
 
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString();
@@ -172,7 +219,7 @@ function ViewNote() {
           </motion.button>
         </div>
 
-        {/* NEW: Password Input for Protected Notes */}
+        {/* Password Input for Protected Notes */}
         <AnimatePresence>
           {showPasswordInput && (
             <motion.div
@@ -249,8 +296,8 @@ function ViewNote() {
             </motion.div>
           )}
 
-          {/* Image Note Display */}
-          {noteType === 'image' && imageUrl && (
+          {/* Image Note Display - Fixed */}
+          {noteType === 'image' && imageBlobUrl && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -267,20 +314,25 @@ function ViewNote() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={downloadImage}
-                    className="px-3 py-1.5 sm:py-2 bg-white/20 rounded-lg text-white text-xs sm:text-sm flex items-center gap-1 hover:bg-white/30 w-full sm:w-auto justify-center"
+                    disabled={downloading}
+                    className="px-3 py-1.5 sm:py-2 bg-white/20 rounded-lg text-white text-xs sm:text-sm flex items-center gap-1 hover:bg-white/30 w-full sm:w-auto justify-center disabled:opacity-50"
                   >
-                    <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                    {downloading ? (
+                      <Loader className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                    )}
                     Download
                   </motion.button>
                 </div>
                 <div className="bg-white/10 rounded-lg p-3 sm:p-4 flex justify-center">
                   <img
-                    src={imageUrl}
+                    src={imageBlobUrl}
                     alt="Shared content"
                     className="max-w-full rounded-lg max-h-64 sm:max-h-96 object-contain"
                     onError={(e) => {
-                      console.error('Image failed to load:', imageUrl);
-                      e.target.src = 'https://via.placeholder.com/400x300?text=Image+Load+Failed';
+                      console.error('Image failed to load');
+                      e.target.src = 'https://via.placeholder.com/400x300?text=Failed+to+Load+Image';
                     }}
                   />
                 </div>

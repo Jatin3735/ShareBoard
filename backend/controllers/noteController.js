@@ -201,15 +201,9 @@ exports.getNoteByCode = async (req, res) => {
       return res.sendFile(path.resolve(note.filepath));
     }
     
-    // If it's image, return the image URL
+    // If it's image, send the actual image file
     if (note.type === 'image') {
-      return res.json({
-        type: 'image',
-        imageUrl: note.imageUrl,
-        createdAt: note.createdAt,
-        views: note.views,
-        expiresAt: note.expiresAt
-      });
+      return res.sendFile(path.resolve(note.filepath));
     }
     
     // If it's text, return the content
