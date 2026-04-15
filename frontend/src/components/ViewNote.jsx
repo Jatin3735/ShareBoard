@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Loader, AlertCircle, Headphones, FileText, Image, Volume2, Download } from 'lucide-react';
+import { Play, Loader, AlertCircle, Headphones, FileText, Image, Volume2, Download, Lock, Unlock } from 'lucide-react';
 import axios from 'axios';
 
 function ViewNote() {
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [noteData, setNoteData] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
@@ -14,7 +16,7 @@ function ViewNote() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  const fetchNote = async () => {
+  const fetchNote = async (providedPassword = null) => {
     if (!code || code.length !== 6) {
       setError('Please enter a valid 6-character code');
       return;
@@ -26,34 +28,49 @@ function ViewNote() {
     setAudioUrl(null);
     setImageUrl(null);
     setNoteType(null);
+    setShowPasswordInput(false);
 
     try {
-      const infoResponse = await axios.get(`${API_URL}/audio/info/${code}`);
+      const url = providedPassword 
+        ? `${API_URL}/audio/${code}?password=${encodeURIComponent(providedPassword)}`
+        : `${API_URL}/audio/${code}`;
       
-      if (infoResponse.data.exists) {
-        setNoteType(infoResponse.data.type);
-        
-        if (infoResponse.data.type === 'text') {
-          const textResponse = await axios.get(`${API_URL}/audio/${code}`);
-          setNoteData(textResponse.data);
-        } else if (infoResponse.data.type === 'image') {
-          const imageUrl = `${API_URL}/audio/${code}`;
-          setImageUrl(imageUrl);
-          setNoteData({
-            views: infoResponse.data.views,
-            createdAt: infoResponse.data.createdAt
-          });
-        } else {
-          const audioUrl = `${API_URL}/audio/${code}`;
-          setAudioUrl(audioUrl);
-        }
+      const response = await axios.get(url);
+      
+      // Handle response based on type
+      if (response.data.type === 'text') {
+        setNoteType('text');
+        setNoteData(response.data);
+      } else if (response.data.type === 'image') {
+        setNoteType('image');
+        setImageUrl(`${API_URL}${response.data.imageUrl}`);
+        setNoteData(response.data);
+      } else {
+        // It's audio (file response)
+        setNoteType('audio');
+        const audioUrl = `${API_URL}/audio/${code}${providedPassword ? `?password=${encodeURIComponent(providedPassword)}` : ''}`;
+        setAudioUrl(audioUrl);
       }
     } catch (error) {
-      console.error('Error:', error);
-      setError('No content found with this code. Please check and try again.');
+      if (error.response?.status === 401 && error.response?.data?.requiresPassword) {
+        setShowPasswordInput(true);
+        setError('This note is password protected. Please enter the password.');
+      } else if (error.response?.status === 410) {
+        setError('This note has expired and is no longer available.');
+      } else {
+        setError('No content found with this code. Please check and try again.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasswordSubmit = () => {
+    if (!password) {
+      setError('Please enter the password');
+      return;
+    }
+    fetchNote(password);
   };
 
   const handleCodeChange = (e) => {
@@ -61,6 +78,8 @@ function ViewNote() {
     value = value.replace(/[^A-Z0-9]/g, '').slice(0, 6);
     setCode(value);
     if (error) setError('');
+    setShowPasswordInput(false);
+    setPassword('');
   };
 
   const handleKeyPress = (e) => {
@@ -88,6 +107,12 @@ function ViewNote() {
         alert('Failed to download image');
       }
     }
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
   };
 
   return (
@@ -131,11 +156,11 @@ function ViewNote() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={fetchNote}
+            onClick={() => fetchNote()}
             disabled={code.length !== 6 || loading}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center ${
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               code.length === 6 && !loading
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50 '
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50'
                 : 'bg-white/20 text-white/50 cursor-not-allowed'
             }`}
           >
@@ -147,13 +172,46 @@ function ViewNote() {
           </motion.button>
         </div>
 
+        {/* NEW: Password Input for Protected Notes */}
+        <AnimatePresence>
+          {showPasswordInput && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4"
+            >
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  placeholder="Enter note password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                  className="flex-1 px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white"
+                />
+                <button
+                  onClick={handlePasswordSubmit}
+                  className="px-4 py-2 bg-purple-500 rounded-lg text-white hover:bg-purple-600 transition"
+                >
+                  <Lock className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-sm sm:text-base"
+              className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm sm:text-base ${
+                error.includes('expired') 
+                  ? 'bg-orange-500/20 border border-orange-500/50 text-orange-200'
+                  : 'bg-red-500/20 border border-red-500/50 text-red-200'
+              }`}
             >
               <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               <span className="break-words">{error}</span>
@@ -162,7 +220,7 @@ function ViewNote() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {/* Text Note Display - Responsive */}
+          {/* Text Note Display */}
           {noteType === 'text' && noteData && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -180,14 +238,18 @@ function ViewNote() {
                     {noteData.content}
                   </p>
                 </div>
-                <div className="mt-4 text-white/40 text-xs sm:text-sm text-center">
-                  Views: {noteData.views} | Created: {new Date(noteData.createdAt).toLocaleString()}
+                <div className="mt-4 text-white/40 text-xs sm:text-sm text-center space-y-1">
+                  <p>Views: {noteData.views}</p>
+                  <p>Created: {formatDate(noteData.createdAt)}</p>
+                  {noteData.expiresAt && (
+                    <p>Expires: {formatDate(noteData.expiresAt)}</p>
+                  )}
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* Image Note Display - Responsive */}
+          {/* Image Note Display */}
           {noteType === 'image' && imageUrl && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -223,15 +285,19 @@ function ViewNote() {
                   />
                 </div>
                 {noteData && (
-                  <div className="mt-4 text-white/40 text-xs sm:text-sm text-center">
-                    Views: {noteData.views} | Created: {new Date(noteData.createdAt).toLocaleString()}
+                  <div className="mt-4 text-white/40 text-xs sm:text-sm text-center space-y-1">
+                    <p>Views: {noteData.views}</p>
+                    <p>Created: {formatDate(noteData.createdAt)}</p>
+                    {noteData.expiresAt && (
+                      <p>Expires: {formatDate(noteData.expiresAt)}</p>
+                    )}
                   </div>
                 )}
               </div>
             </motion.div>
           )}
 
-          {/* Audio Note Display - Responsive */}
+          {/* Audio Note Display */}
           {noteType === 'audio' && audioUrl && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -253,7 +319,7 @@ function ViewNote() {
           )}
         </AnimatePresence>
 
-        {/* Tips - Responsive */}
+        {/* Tips */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -263,9 +329,9 @@ function ViewNote() {
           <h3 className="text-white font-semibold mb-2 text-sm sm:text-base">💡 Tips:</h3>
           <ul className="text-white/70 text-xs sm:text-sm space-y-1">
             <li>• Codes are 6 characters (letters and numbers)</li>
-            <li>• Each note expires after 24 hours</li>
+            <li>• Notes auto-expire based on creator's choice</li>
+            <li>• Password-protected notes require a password to view</li>
             <li>• Supports Text, Audio, and Image notes</li>
-            <li>• Images up to 5MB (JPG, PNG, GIF)</li>
           </ul>
         </motion.div>
       </div>

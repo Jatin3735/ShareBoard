@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Copy, CheckCircle, Loader, Type, Image, Upload, X } from 'lucide-react';
+import { Mic, Square, Copy, CheckCircle, Loader, Type, Image, Upload, X, Lock, Unlock } from 'lucide-react';
 import axios from 'axios';
 
 function CreateNote() {
@@ -13,12 +13,28 @@ function CreateNote() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  
+  // NEW: Password and Expiry states
+  const [password, setPassword] = useState('');
+  const [enablePassword, setEnablePassword] = useState(false);
+  const [expiryHours, setExpiryHours] = useState(24);
+  const [noteInfo, setNoteInfo] = useState(null);
+  
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const expiryOptions = [
+    { value: 1, label: '1 Hour' },
+    { value: 6, label: '6 Hours' },
+    { value: 12, label: '12 Hours' },
+    { value: 24, label: '24 Hours' },
+    { value: 72, label: '3 Days' },
+    { value: 168, label: '7 Days' }
+  ];
 
   // Text Note Functions
   const saveTextNote = async () => {
@@ -30,9 +46,12 @@ function CreateNote() {
     setUploading(true);
     try {
       const response = await axios.post(`${API_URL}/audio/text`, {
-        text: textContent
+        text: textContent,
+        password: enablePassword ? password : null,
+        expiryHours: expiryHours
       });
       setGeneratedCode(response.data.code);
+      setNoteInfo(response.data);
     } catch (error) {
       alert('Failed to save text note');
     } finally {
@@ -67,12 +86,15 @@ function CreateNote() {
     setUploading(true);
     const formData = new FormData();
     formData.append('image', selectedImage);
+    formData.append('password', enablePassword ? password : '');
+    formData.append('expiryHours', expiryHours);
 
     try {
       const response = await axios.post(`${API_URL}/audio/upload-image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setGeneratedCode(response.data.code);
+      setNoteInfo(response.data);
     } catch (error) {
       alert('Image upload failed. Please try again.');
     } finally {
@@ -128,12 +150,15 @@ function CreateNote() {
     setUploading(true);
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
+    formData.append('password', enablePassword ? password : '');
+    formData.append('expiryHours', expiryHours);
 
     try {
       const response = await axios.post(`${API_URL}/audio/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setGeneratedCode(response.data.code);
+      setNoteInfo(response.data);
     } catch (error) {
       alert('Upload failed. Please try again.');
     } finally {
@@ -158,6 +183,10 @@ function CreateNote() {
     setTextContent('');
     setSelectedImage(null);
     setImagePreview(null);
+    setPassword('');
+    setEnablePassword(false);
+    setExpiryHours(24);
+    setNoteInfo(null);
     setNoteType('text');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -179,7 +208,7 @@ function CreateNote() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              {/* Note Type Selector - Responsive Grid */}
+              {/* Note Type Selector */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 <button
                   onClick={() => setNoteType('text')}
@@ -190,7 +219,7 @@ function CreateNote() {
                   }`}
                 >
                   <Type className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden xs:inline">Text</span>
+                  Text
                 </button>
                 <button
                   onClick={() => setNoteType('audio')}
@@ -201,7 +230,7 @@ function CreateNote() {
                   }`}
                 >
                   <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden xs:inline">Audio</span>
+                  Audio
                 </button>
                 <button
                   onClick={() => setNoteType('image')}
@@ -212,8 +241,52 @@ function CreateNote() {
                   }`}
                 >
                   <Image className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden xs:inline">Image</span>
+                  Image
                 </button>
+              </div>
+
+              {/* NEW: Expiry Selector */}
+              <div className="mb-4">
+                <label className="text-white/80 text-sm block mb-2">⏰ Expires after:</label>
+                <select
+                  value={expiryHours}
+                  onChange={(e) => setExpiryHours(parseInt(e.target.value))}
+                  className="w-full px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:border-white"
+                >
+                  {expiryOptions.map(option => (
+                    <option key={option.value} value={option.value} className="text-black">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* NEW: Password Protection Toggle */}
+              <div className="mb-6">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enablePassword}
+                    onChange={(e) => setEnablePassword(e.target.checked)}
+                    className="w-5 h-5 rounded border-white/30 bg-white/20 checked:bg-purple-500"
+                  />
+                  <span className="text-white/80 text-sm flex items-center gap-2">
+                    {enablePassword ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                    {enablePassword ? 'Password Protected' : 'Public (No Password)'}
+                  </span>
+                </label>
+                
+                {enablePassword && (
+                  <motion.input
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    type="password"
+                    placeholder="Enter a password for this note"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="mt-3 w-full px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white"
+                  />
+                )}
               </div>
 
               {/* Text Note Interface */}
@@ -244,7 +317,7 @@ function CreateNote() {
                     {uploading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                        Saving...
+                        Generating Code...
                       </span>
                     ) : (
                       'Generate Code →'
@@ -253,7 +326,7 @@ function CreateNote() {
                 </motion.div>
               )}
 
-              {/* Audio Note Interface - Responsive */}
+              {/* Audio Note Interface */}
               {noteType === 'audio' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -344,7 +417,7 @@ function CreateNote() {
                 </motion.div>
               )}
 
-              {/* Image Note Interface - Responsive */}
+              {/* Image Note Interface */}
               {noteType === 'image' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -392,7 +465,7 @@ function CreateNote() {
                         {uploading ? (
                           <span className="flex items-center justify-center gap-2">
                             <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                            Uploading Image...
+                            Generating Code...
                           </span>
                         ) : (
                           'Generate Code →'
@@ -437,6 +510,18 @@ function CreateNote() {
                 >
                   {generatedCode}
                 </motion.div>
+                
+                {/* NEW: Note Info Display */}
+                {noteInfo && (
+                  <div className="mt-4 space-y-2 text-white/70 text-xs sm:text-sm border-t border-white/20 pt-4">
+                    {noteInfo.isProtected && (
+                      <p className="flex items-center justify-center gap-2">
+                        <Lock className="w-3 h-3" /> Password Protected
+                      </p>
+                    )}
+                    <p>⏰ Expires in: {noteInfo.expiresIn}</p>
+                  </div>
+                )}
               </div>
               
               <p className="text-white/80 text-sm sm:text-base mb-4">
