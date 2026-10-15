@@ -7,7 +7,7 @@ import {
   CheckCircle,
   Loader,
   Type,
-  Image,
+  Image as ImageIcon,
   Upload,
   X,
   Lock,
@@ -231,7 +231,7 @@ function CreateNote() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-2xl">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl shadow-black/20 sm:p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-8 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-black/20">
         <AnimatePresence mode="wait">
           {!generatedCode ? (
             <motion.div key="creator" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -239,7 +239,7 @@ function CreateNote() {
                 {[
                   { id: 'text', label: 'Text', icon: Type },
                   { id: 'audio', label: 'Audio', icon: Mic },
-                  { id: 'image', label: 'Image', icon: Image },
+                  { id: 'image', label: 'Image', icon: ImageIcon },
                 ].map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
@@ -249,7 +249,7 @@ function CreateNote() {
                     className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition ${
                       noteType === id
                         ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     <Icon className="h-4 w-4" />
@@ -260,14 +260,14 @@ function CreateNote() {
 
               <div className="mb-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 flex items-center gap-2 text-sm text-slate-300">
-                    <Clock className="h-4 w-4 text-slate-500" />
+                  <label className="mb-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <Clock className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                     Expires after
                   </label>
                   <select
                     value={expiryHours}
                     onChange={(e) => setExpiryHours(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     {expiryOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -278,22 +278,22 @@ function CreateNote() {
                 </div>
 
                 <div>
-                  <label className="mb-2 flex items-center gap-2 text-sm text-slate-300">
+                  <label className="mb-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                     {enablePassword ? (
-                      <Lock className="h-4 w-4 text-slate-500" />
+                      <Lock className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                     ) : (
-                      <Unlock className="h-4 w-4 text-slate-500" />
+                      <Unlock className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                     )}
                     Privacy
                   </label>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-800">
                     <input
                       type="checkbox"
                       checked={enablePassword}
                       onChange={(e) => setEnablePassword(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-slate-300 bg-white text-indigo-500 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700"
                     />
-                    <span className="text-sm text-slate-200">
+                    <span className="text-sm text-slate-700 dark:text-slate-200">
                       {enablePassword ? 'Password protected' : 'Public link'}
                     </span>
                   </label>
@@ -307,7 +307,7 @@ function CreateNote() {
                     placeholder="Enter a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
                   />
                 </motion.div>
               )}
@@ -320,9 +320,9 @@ function CreateNote() {
                     placeholder="Type your message here..."
                     maxLength={5000}
                     rows={6}
-                    className="w-full resize-none rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
                   />
-                  <div className="flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-500">
                     <span>Max 5,000 characters</span>
                     <span>{textContent.length}/5000</span>
                   </div>
@@ -356,7 +356,7 @@ function CreateNote() {
 
                   {isRecording && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4">
-                      <div className="font-mono text-3xl font-semibold text-white">
+                      <div className="font-mono text-3xl font-semibold text-slate-900 dark:text-white">
                         {formatTime(recordingTime)}
                       </div>
                       <div className="mt-3 flex justify-center gap-1">
@@ -385,7 +385,7 @@ function CreateNote() {
                   </button>
 
                   {uploading && (
-                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400">
+                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                       <Loader className="h-4 w-4 animate-spin" />
                       Uploading recording...
                     </div>
@@ -399,11 +399,11 @@ function CreateNote() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full rounded-2xl border border-dashed border-slate-700 bg-slate-800/50 p-8 text-center transition hover:border-indigo-500/60 hover:bg-slate-800"
+                      className="w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center transition hover:border-indigo-500/60 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800"
                     >
-                      <Upload className="mx-auto mb-4 h-10 w-10 text-slate-500" />
-                      <p className="text-sm font-medium text-slate-200">Click to upload an image</p>
-                      <p className="mt-1 text-xs text-slate-500">JPG, PNG, GIF, WEBP up to 5MB</p>
+                      <Upload className="mx-auto mb-4 h-10 w-10 text-slate-400 dark:text-slate-500" />
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Click to upload an image</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">JPG, PNG, GIF, WEBP up to 5MB</p>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -414,7 +414,7 @@ function CreateNote() {
                     </button>
                   ) : (
                     <div className="space-y-4">
-                      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-800/50">
+                      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
                         <img src={imagePreview} alt="Preview" className="max-h-80 w-full object-contain" />
                         <button
                           type="button"
@@ -441,23 +441,23 @@ function CreateNote() {
           ) : (
             <motion.div key="code" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
               <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
-                <CheckCircle className="h-8 w-8 text-emerald-400" />
+                <CheckCircle className="h-8 w-8 text-emerald-500" />
               </div>
 
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
                 {noteType === 'text' && 'Text note saved'}
                 {noteType === 'audio' && 'Recording saved'}
                 {noteType === 'image' && 'Image saved'}
               </h2>
 
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Share this code with anyone you want to give access.
               </p>
 
-              <div className="my-6 rounded-2xl border border-slate-800 bg-slate-800/60 p-6">
+              <div className="my-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-800 dark:bg-slate-800/60">
                 <p className="text-xs uppercase tracking-wider text-slate-500">Your code</p>
                 <motion.div
-                  className="mt-2 break-all font-mono text-4xl font-bold tracking-widest text-white sm:text-5xl"
+                  className="mt-2 break-all font-mono text-4xl font-bold tracking-widest text-slate-900 sm:text-5xl dark:text-white"
                   animate={{ scale: [1, 1.03, 1] }}
                   transition={{ duration: 0.4 }}
                 >
@@ -465,7 +465,7 @@ function CreateNote() {
                 </motion.div>
 
                 {noteInfo && (
-                  <div className="mt-4 space-y-1 border-t border-slate-700 pt-4 text-xs text-slate-400">
+                  <div className="mt-4 space-y-1 border-t border-slate-200 pt-4 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
                     {noteInfo.isProtected && (
                       <p className="flex items-center justify-center gap-1">
                         <Lock className="h-3 w-3" /> Password protected
@@ -479,7 +479,7 @@ function CreateNote() {
               <button
                 type="button"
                 onClick={copyToClipboard}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
               >
                 {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied ? 'Copied' : 'Copy code'}
@@ -488,7 +488,7 @@ function CreateNote() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="mt-4 block w-full text-sm text-slate-400 transition hover:text-white"
+                className="mt-4 block w-full text-sm text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 Create another
               </button>

@@ -6,10 +6,12 @@ import {
   AlertCircle,
   Headphones,
   FileText,
-  Image,
+  Image as ImageIcon,
   Volume2,
   Download,
   Lock,
+  Copy,
+  CheckCircle,
 } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '../config';
@@ -24,6 +26,8 @@ function ViewNote() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [noteType, setNoteType] = useState(null);
+  const [textCopied, setTextCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -39,6 +43,7 @@ function ViewNote() {
     setNoteType(null);
     setError('');
     setShowPasswordInput(false);
+    setTextCopied(false);
   };
 
   const fetchNote = async (providedPassword = null) => {
@@ -54,6 +59,7 @@ function ViewNote() {
     setImageUrl(null);
     setNoteType(null);
     setShowPasswordInput(false);
+    setTextCopied(false);
 
     try {
       const infoResponse = await axios.get(`${API_URL}/audio/info/${code}`);
@@ -141,6 +147,32 @@ function ViewNote() {
     link.remove();
   };
 
+  const copyTextContent = async () => {
+    if (!noteData?.content) return;
+    try {
+      await navigator.clipboard.writeText(noteData.content);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = noteData.content;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      el.remove();
+    }
+    setTextCopied(true);
+    setTimeout(() => setTextCopied(false), 2000);
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString();
@@ -148,13 +180,15 @@ function ViewNote() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-2xl">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl shadow-black/20 sm:p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-8 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-black/20">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/15">
-            <Headphones className="h-7 w-7 text-indigo-400" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/10 dark:bg-indigo-500/15">
+            <Headphones className="h-7 w-7 text-indigo-500 dark:text-indigo-400" />
           </div>
-          <h2 className="text-xl font-semibold text-white">View a shared note</h2>
-          <p className="mt-2 text-sm text-slate-400">Enter the 6-character code you received.</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">View a shared note</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Enter the 6-character code you received.
+          </p>
         </div>
 
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
@@ -164,7 +198,7 @@ function ViewNote() {
             value={code}
             onChange={handleCodeChange}
             onKeyDown={(e) => e.key === 'Enter' && code.length === 6 && fetchNote()}
-            className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-center font-mono text-lg tracking-[0.3em] text-white placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center font-mono text-lg tracking-[0.3em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
             maxLength={6}
             autoCapitalize="characters"
           />
@@ -189,7 +223,7 @@ function ViewNote() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
                   autoFocus
                 />
                 <button
@@ -212,8 +246,8 @@ function ViewNote() {
               exit={{ opacity: 0, y: -8 }}
               className={`mb-4 flex items-start gap-2 rounded-xl border p-3 text-sm ${
                 error.toLowerCase().includes('expired')
-                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
-                  : 'border-red-500/30 bg-red-500/10 text-red-200'
+                  ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                  : 'border-red-300 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
               }`}
             >
               <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -225,13 +259,27 @@ function ViewNote() {
         <AnimatePresence>
           {noteType === 'text' && noteData && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="mt-6">
-              <div className="rounded-2xl border border-slate-800 bg-slate-800/50 p-5">
-                <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
-                  <FileText className="h-4 w-4 text-indigo-400" />
-                  Text message
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-800/50">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                    Text message
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyTextContent}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    {textCopied ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                    {textCopied ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
-                <div className="rounded-xl bg-slate-900/70 p-4">
-                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-100">
+                <div className="rounded-xl bg-white p-4 dark:bg-slate-900/70">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-800 dark:text-slate-100">
                     {noteData.content}
                   </p>
                 </div>
@@ -246,22 +294,22 @@ function ViewNote() {
 
           {noteType === 'image' && imageUrl && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="mt-6">
-              <div className="rounded-2xl border border-slate-800 bg-slate-800/50 p-5">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-800/50">
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-                    <Image className="h-4 w-4 text-indigo-400" />
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    <ImageIcon className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
                     Image
                   </div>
                   <button
                     type="button"
                     onClick={downloadImage}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 transition hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Download
                   </button>
                 </div>
-                <div className="flex justify-center rounded-xl bg-slate-900/70 p-4">
+                <div className="flex justify-center rounded-xl bg-white p-4 dark:bg-slate-900/70">
                   <img src={imageUrl} alt="Shared content" className="max-h-96 max-w-full rounded-lg object-contain" />
                 </div>
                 <div className="mt-4 space-y-1 text-center text-xs text-slate-500">
@@ -275,14 +323,18 @@ function ViewNote() {
 
           {noteType === 'audio' && audioUrl && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="mt-6">
-              <div className="rounded-2xl border border-slate-800 bg-slate-800/50 p-5">
-                <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-200">
-                  <Volume2 className="h-4 w-4 text-indigo-400" />
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-800/50">
+                <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <Volume2 className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
                   Audio message
                 </div>
                 <audio controls src={audioUrl} className="w-full" />
                 <div className="mt-4 text-center">
-                  <a href={audioUrl} download className="text-xs text-slate-400 transition hover:text-white">
+                  <a
+                    href={audioUrl}
+                    download
+                    className="text-xs text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  >
                     Download audio
                   </a>
                 </div>
@@ -296,13 +348,32 @@ function ViewNote() {
           )}
         </AnimatePresence>
 
-        <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <h3 className="mb-2 text-sm font-medium text-slate-200">Tips</h3>
+        <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-slate-700 dark:text-slate-200">Tips</h3>
+            {code.length === 6 && (
+              <button
+                type="button"
+                onClick={copyCode}
+                className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              >
+                {codeCopied ? (
+                  <>
+                    <CheckCircle className="h-3 w-3 text-emerald-500" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3" /> Copy code
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <ul className="space-y-1 text-xs text-slate-500">
             <li>• Codes are 6 characters and are not case-sensitive.</li>
             <li>• Notes expire automatically based on the creator's setting.</li>
             <li>• Password-protected notes require the password to view.</li>
-            <li>• Supports text, audio, and image notes.</li>
+            <li>• Text notes have a one-click copy button.</li>
           </ul>
         </div>
       </div>
