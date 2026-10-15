@@ -1,29 +1,32 @@
 const multer = require('multer');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 
-const storage = multer.diskStorage({
-  destination: './uploads/',
-  filename: (req, file, cb) => {
-    const uniqueName = uuidv4();
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueName}${ext}`);
-  }
-});
+const storage = multer.memoryStorage();
+
+const allowedTypes = [
+  'audio/webm',
+  'audio/ogg',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/wav',
+  'audio/x-wav',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+];
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['audio/webm', 'audio/mpeg', 'audio/wav', 'audio/mp3', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file format'), false);
+    cb(new Error('Invalid file type. Allowed: audio/webm, audio/mpeg, image/jpeg, image/png, image/gif, image/webp'));
   }
 };
 
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
-  fileFilter: fileFilter
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter,
 });
 
 module.exports = upload;

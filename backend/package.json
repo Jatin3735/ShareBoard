@@ -11,6 +11,9 @@
   "author": "",
   "license": "ISC",
   "description": "",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Share2 } from 'lucide-react';
 import CreateNote from './components/CreateNote';
 import ViewNote from './components/ViewNote';
 import Footer from './components/Footer';
@@ -8,83 +9,74 @@ function App() {
   const [mode, setMode] = useState('create');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700">
-      {/* Animated Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse animation-delay-4000"></div>
-      </div>
+    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/25 via-slate-950 to-slate-950" />
 
-      {/* Header */}
-      <motion.div 
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", bounce: 0.5 }}
-        className="relative bg-white/10 backdrop-blur-lg border-b border-white/20"
-      >
-        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
-          <div className="text-center">
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="inline-block"
-            >
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-2">
-                📝🎙️ ShareBoard
-              </h1>
-            </motion.div>
-            <p className="text-white/80 text-sm sm:text-base md:text-lg">
-              Share Text, Audio, or Images with a Simple Code
-            </p>
+      <header className="relative z-10 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 shadow-lg shadow-indigo-500/20">
+              <Share2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight">ShareBoard</h1>
+              <p className="hidden text-xs text-slate-400 sm:block">
+                Share text, audio, and images with a code
+              </p>
+            </div>
           </div>
-        </div>
-      </motion.div>
 
-      {/* Mode Toggle Buttons - Responsive */}
-      <div className="relative container mx-auto px-4 pt-6 sm:pt-8">
-        <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setMode('create')}
-            className={`px-6 sm:px-8 py-2 sm:py-3 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
-              mode === 'create' 
-                ? 'bg-white text-purple-600 shadow-lg shadow-purple-500/50' 
-                : 'bg-white/20 text-white backdrop-blur-sm hover:bg-white/30'
-            }`}
-          >
-            ✨ Create Note
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setMode('view')}
-            className={`px-6 sm:px-8 py-2 sm:py-3 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
-              mode === 'view' 
-                ? 'bg-white text-purple-600 shadow-lg shadow-purple-500/50' 
-                : 'bg-white/20 text-white backdrop-blur-sm hover:bg-white/30'
-            }`}
-          >
-            🔓 View Note
-          </motion.button>
+          <nav className="flex rounded-lg border border-slate-800 bg-slate-900 p-1">
+            <button
+              type="button"
+              onClick={() => setMode('create')}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                mode === 'create'
+                  ? 'bg-indigo-500 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('view')}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                mode === 'view'
+                  ? 'bg-indigo-500 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              View
+            </button>
+          </nav>
         </div>
-      </div>
+      </header>
 
-      {/* Content */}
-      <div className="relative container mx-auto px-4 py-8 sm:py-12">
+      <main className="relative z-10 mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:py-12">
+        <div className="mb-8 text-center">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {mode === 'create' ? 'Create a secure share' : 'Access a shared note'}
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400">
+            {mode === 'create'
+              ? 'Choose a type, add your content, and get a 6-character code.'
+              : 'Enter the code you received to view the shared content.'}
+          </p>
+        </div>
+
         <AnimatePresence mode="wait">
           <motion.div
             key={mode}
-            initial={{ opacity: 0, x: mode === 'create' ? -100 : 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: mode === 'create' ? 100 : -100 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2 }}
           >
             {mode === 'create' ? <CreateNote /> : <ViewNote />}
           </motion.div>
         </AnimatePresence>
-      </div>
+      </main>
 
       <Footer />
     </div>
