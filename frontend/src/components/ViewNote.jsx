@@ -12,6 +12,7 @@ import {
   Lock,
   Copy,
   CheckCircle,
+  ExternalLink,
 } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '../config';
@@ -23,6 +24,7 @@ function ViewNote() {
   const [noteData, setNoteData] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
+  const [fileUrl, setFileUrl] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [noteType, setNoteType] = useState(null);
@@ -33,13 +35,15 @@ function ViewNote() {
     return () => {
       if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
       if (audioUrl?.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
+      if (fileUrl?.startsWith('blob:')) URL.revokeObjectURL(fileUrl);
     };
-  }, [imageUrl, audioUrl]);
+  }, [imageUrl, audioUrl, fileUrl]);
 
   const resetResult = () => {
     setNoteData(null);
     setAudioUrl(null);
     setImageUrl(null);
+    setFileUrl(null);
     setNoteType(null);
     setError('');
     setShowPasswordInput(false);
@@ -57,6 +61,7 @@ function ViewNote() {
     setNoteData(null);
     setAudioUrl(null);
     setImageUrl(null);
+    setFileUrl(null);
     setNoteType(null);
     setShowPasswordInput(false);
     setTextCopied(false);
@@ -96,6 +101,10 @@ function ViewNote() {
       } else if (data.type === 'audio') {
         setNoteType('audio');
         setAudioUrl(data.audioData);
+        setNoteData(data);
+      } else if (data.type === 'file') {
+        setNoteType('file');
+        setFileUrl(data.fileData);
         setNoteData(data);
       } else {
         setError(`Cannot display this note. Response type: ${data.type || 'unknown'}`);
@@ -137,11 +146,11 @@ function ViewNote() {
     setPassword('');
   };
 
-  const downloadImage = () => {
-    if (!imageUrl) return;
+  const downloadFromUrl = (dataUrl, filename) => {
+    if (!dataUrl) return;
     const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `shareboard-${code}.jpg`;
+    link.href = dataUrl;
+    link.download = filename || `shareboard-${code}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -177,6 +186,11 @@ function ViewNote() {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString();
   };
+
+  const isPdf = noteData?.fileMime === 'application/pdf';
+  const isText =
+    noteData?.fileMime?.startsWith('text/') ||
+    noteData?.fileMime === 'application/json';
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto w-full max-w-2xl">
@@ -302,7 +316,7 @@ function ViewNote() {
                   </div>
                   <button
                     type="button"
-                    onClick={downloadImage}
+                    onClick={() => downloadFromUrl(imageUrl, noteData?.filename || `shareboard-${code}.jpg`)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     <Download className="h-3.5 w-3.5" />
@@ -330,14 +344,82 @@ function ViewNote() {
                 </div>
                 <audio controls src={audioUrl} className="w-full" />
                 <div className="mt-4 text-center">
-                  <a
-                    href={audioUrl}
-                    download
+                  <button
+                    type="button"
+                    onClick={() => downloadFromUrl(audioUrl, noteData?.filename || 'recording.webm')}
                     className="text-xs text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   >
                     Download audio
-                  </a>
+                  </button>
                 </div>
+                <div className="mt-4 space-y-1 text-center text-xs text-slate-500">
+                  <p>Views: {noteData?.views}</p>
+                  <p>Created: {formatDate(noteData?.createdAt)}</p>
+                  {noteData?.expiresAt && <p>Expires: {formatDate(noteData.expiresAt)}</p>}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {noteType === 'file' && fileUrl && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="mt-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-800/50">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    <FileText className="h-4 w-4 flex-shrink-0 text-indigo-500 dark:text-indigo-400" />
+                    <span className="truncate">{noteData?.filename || 'Shared file'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => downloadFromUrl(fileUrl, noteData?.filename || `shareboard-${code}`)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </button>
+                  </div>
+                </div>
+
+                {isPdf && (
+                  <div className="overflow-hidden rounded-xl bg-white dark:bg-slate-900/70">
+                    <iframe
+                      title="PDF preview"
+                      src={fileUrl}
+                      className="h-[28rem] w-full"
+                    />
+                  </div>
+                )}
+
+                {isText && (
+                  <div className="rounded-xl bg-white p-4 dark:bg-slate-900/70">
+                    <p className="whitespace-pre-wrap break-words text-xs text-slate-700 dark:text-slate-200">
+                      Preview available via the Open button.
+                    </p>
+                  </div>
+                )}
+
+                {!isPdf && !isText && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900/70">
+                    <FileText className="mx-auto mb-3 h-10 w-10 text-slate-400 dark:text-slate-500" />
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      This file type can't be previewed inline.
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Use the Open or Download buttons above to view it.
+                    </p>
+                  </div>
+                )}
+
                 <div className="mt-4 space-y-1 text-center text-xs text-slate-500">
                   <p>Views: {noteData?.views}</p>
                   <p>Created: {formatDate(noteData?.createdAt)}</p>
@@ -373,7 +455,7 @@ function ViewNote() {
             <li>• Codes are 6 characters and are not case-sensitive.</li>
             <li>• Notes expire automatically based on the creator's setting.</li>
             <li>• Password-protected notes require the password to view.</li>
-            <li>• Text notes have a one-click copy button.</li>
+            <li>• Text notes have a one-click copy button; files can be opened or downloaded.</li>
           </ul>
         </div>
       </div>

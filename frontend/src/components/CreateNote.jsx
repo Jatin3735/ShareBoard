@@ -8,6 +8,7 @@ import {
   Loader,
   Type,
   Image as ImageIcon,
+  FileText,
   Upload,
   X,
   Lock,
@@ -17,6 +18,49 @@ import {
 import axios from 'axios';
 import { API_URL } from '../config';
 
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
+
+const ALLOWED_EXTENSIONS = [
+  'pdf',
+  'ppt',
+  'pptx',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
+  'txt',
+  'csv',
+  'md',
+  'zip',
+  'rar',
+  '7z',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'webp',
+  'svg',
+  'bmp',
+];
+
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+
+function getExtension(name) {
+  const parts = String(name).split('.');
+  return parts.length > 1 ? parts.pop().toLowerCase() : '';
+}
+
+function isImageFile(file) {
+  return file.type.startsWith('image/') || IMAGE_EXTENSIONS.includes(getExtension(file.name));
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+}
+
 function CreateNote() {
   const [noteType, setNoteType] = useState('text');
   const [textContent, setTextContent] = useState('');
@@ -25,8 +69,8 @@ function CreateNote() {
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState(null);
   const [password, setPassword] = useState('');
   const [enablePassword, setEnablePassword] = useState(false);
   const [expiryHours, setExpiryHours] = useState(24);
@@ -59,9 +103,9 @@ function CreateNote() {
 
   useEffect(() => {
     return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
     };
-  }, [imagePreview]);
+  }, [filePreviewUrl]);
 
   const validateSecurity = () => {
     if (enablePassword && !password.trim()) {
@@ -94,52 +138,59 @@ function CreateNote() {
     }
   };
 
-  const handleImageSelect = (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB');
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file');
+    const ext = getExtension(file.name);
+
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      alert(
+        `Unsupported file type ".${ext}". Allowed: PDF, PPT, PPTX, DOC, DOCX, XLS, XLSX, TXT, CSV, MD, ZIP, RAR, 7Z, JPG, PNG, GIF, WEBP, SVG, BMP.`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    setSelectedImage(file);
-    setImagePreview(URL.createObjectURL(file));
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`File too large. Max size is ${formatBytes(MAX_FILE_SIZE)}.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+    setFilePreviewUrl(isImageFile(file) ? URL.createObjectURL(file) : null);
   };
 
-  const uploadImage = async () => {
-    if (!selectedImage) {
-      alert('Please select an image first');
+  const uploadFile = async () => {
+    if (!selectedFile) {
+      alert('Please select a file first');
       return;
     }
     if (!validateSecurity()) return;
 
     setUploading(true);
     const formData = new FormData();
-    formData.append('image', selectedImage);
+    formData.append('file', selectedFile);
     formData.append('password', enablePassword ? password : '');
     formData.append('expiryHours', expiryHours);
 
     try {
-      const response = await axios.post(`${API_URL}/audio/upload-image`, formData, {
+      const response = await axios.post(`${API_URL}/audio/upload-file`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setGeneratedCode(response.data.code);
       setNoteInfo(response.data);
     } catch (error) {
-      alert(error.response?.data?.error || 'Image upload failed. Please try again.');
+      alert(error.response?.data?.error || 'File upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
   };
 
-  const removeImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
+  const removeFile = () => {
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -218,8 +269,8 @@ function CreateNote() {
   const resetForm = () => {
     setGeneratedCode('');
     setTextContent('');
-    setSelectedImage(null);
-    setImagePreview(null);
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
     setPassword('');
     setEnablePassword(false);
     setExpiryHours(24);
@@ -239,7 +290,7 @@ function CreateNote() {
                 {[
                   { id: 'text', label: 'Text', icon: Type },
                   { id: 'audio', label: 'Audio', icon: Mic },
-                  { id: 'image', label: 'Image', icon: ImageIcon },
+                  { id: 'file', label: 'File', icon: FileText },
                 ].map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
@@ -393,32 +444,55 @@ function CreateNote() {
                 </motion.div>
               )}
 
-              {noteType === 'image' && (
+              {noteType === 'file' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                  {!imagePreview ? (
+                  {!selectedFile ? (
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       className="w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center transition hover:border-indigo-500/60 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800"
                     >
                       <Upload className="mx-auto mb-4 h-10 w-10 text-slate-400 dark:text-slate-500" />
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Click to upload an image</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">JPG, PNG, GIF, WEBP up to 5MB</p>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        Click to upload any file
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
+                        PDF, PPT, PPTX, DOC, DOCX, XLS, XLSX, TXT, CSV, MD, ZIP, RAR, 7Z, and images — up to 15 MB
+                      </p>
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/*"
-                        onChange={handleImageSelect}
+                        onChange={handleFileSelect}
                         className="hidden"
                       />
                     </button>
                   ) : (
                     <div className="space-y-4">
-                      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
-                        <img src={imagePreview} alt="Preview" className="max-h-80 w-full object-contain" />
+                      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                        {filePreviewUrl ? (
+                          <img
+                            src={filePreviewUrl}
+                            alt="Preview"
+                            className="mx-auto max-h-72 w-auto rounded-lg object-contain"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15">
+                              <FileText className="h-6 w-6 text-indigo-500 dark:text-indigo-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                                {selectedFile.name}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {formatBytes(selectedFile.size)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         <button
                           type="button"
-                          onClick={removeImage}
+                          onClick={removeFile}
                           className="absolute right-3 top-3 rounded-full bg-slate-950/80 p-2 text-slate-200 transition hover:bg-red-500 hover:text-white"
                         >
                           <X className="h-4 w-4" />
@@ -426,7 +500,7 @@ function CreateNote() {
                       </div>
                       <button
                         type="button"
-                        onClick={uploadImage}
+                        onClick={uploadFile}
                         disabled={uploading}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -447,7 +521,7 @@ function CreateNote() {
               <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
                 {noteType === 'text' && 'Text note saved'}
                 {noteType === 'audio' && 'Recording saved'}
-                {noteType === 'image' && 'Image saved'}
+                {noteType === 'file' && 'File saved'}
               </h2>
 
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">

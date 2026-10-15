@@ -2,10 +2,16 @@ const mongoose = require('mongoose');
 
 const noteSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true, uppercase: true, trim: true },
-  type: { type: String, enum: ['text', 'audio', 'image'], required: true },
+  type: {
+    type: String,
+    enum: ['text', 'audio', 'image', 'file'],
+    required: true,
+  },
   textContent: { type: String, default: null },
   audioData: { type: String, default: null },
   imageData: { type: String, default: null },
+  fileData: { type: String, default: null },
+  fileMime: { type: String, default: null },
   filename: { type: String, default: null },
   password: { type: String, default: null },
   isProtected: { type: Boolean, default: false },

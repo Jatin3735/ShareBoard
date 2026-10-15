@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const ALLOWED_EXPIRY_HOURS = [1, 6, 12, 24, 72, 168];
 const MAX_TEXT_LENGTH = 5000;
 
+const IMAGE_MIME_PREFIX = 'image/';
+
 function generateCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
@@ -105,6 +107,53 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
+/**
+ * Generic file upload — PDF, PPT, DOC, XLS, ZIP, images, etc.
+ * If the mime type is image/*, store as image note.
+ * Otherwise store as file note.
+ */
+exports.uploadFile = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const expiryHours = normalizeExpiry(req.body.expiryHours);
+    const hashedPassword = await getHashedPassword(req.body.password);
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const code = await generateUniqueCode();
+
+    const isImage = req.file.mimetype.startsWith(IMAGE_MIME_PREFIX);
+
+    const note = new Note({
+      code,
+      type: isImage ? 'image' : 'file',
+      filename: req.file.originalname,
+      password: hashedPassword,
+      isProtected: Boolean(hashedPassword),
+      expiryHours,
+      expiresAt: calculateExpiry(expiryHours),
+    });
+
+    if (isImage) {
+      note.imageData = dataUrl;
+    } else {
+      note.fileData = dataUrl;
+      note.fileMime = req.file.mimetype;
+    }
+
+    await note.save();
+
+    return sendUploadResponse(res, {
+      code,
+      type: note.type,
+      isProtected: Boolean(hashedPassword),
+      expiryHours,
+    });
+  } catch (error) {
+    console.error('uploadFile error:', error);
+    return res.status(500).json({ error: 'File upload failed' });
+  }
+};
+
 exports.saveTextNote = async (req, res) => {
   try {
     const { text, password, expiryHours } = req.body;
@@ -181,6 +230,7 @@ exports.getNoteByCode = async (req, res) => {
       return res.json({
         type: 'image',
         imageData: note.imageData,
+        filename: note.filename,
         createdAt: note.createdAt,
         views: note.views,
         expiresAt: note.expiresAt,
@@ -190,6 +240,18 @@ exports.getNoteByCode = async (req, res) => {
       return res.json({
         type: 'audio',
         audioData: note.audioData,
+        filename: note.filename,
+        createdAt: note.createdAt,
+        views: note.views,
+        expiresAt: note.expiresAt,
+      });
+    }
+    if (note.type === 'file') {
+      return res.json({
+        type: 'file',
+        fileData: note.fileData,
+        fileMime: note.fileMime,
+        filename: note.filename,
         createdAt: note.createdAt,
         views: note.views,
         expiresAt: note.expiresAt,
