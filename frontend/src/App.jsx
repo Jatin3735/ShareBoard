@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, Sun, Moon } from 'lucide-react';
 import CreateNote from './components/CreateNote';
@@ -8,7 +8,27 @@ import { useTheme } from './hooks/useTheme';
 
 function App() {
   const [mode, setMode] = useState('create');
+  const [autoCode, setAutoCode] = useState('');
   const { theme, toggleTheme } = useTheme();
+
+  // Read ?code=XXX from URL and jump straight to View mode
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+
+    if (codeFromUrl.length === 6) {
+      setAutoCode(codeFromUrl);
+      setMode('view');
+    }
+  }, []);
+
+  const switchMode = (next) => {
+    setMode(next);
+    // Clean up ?code= from URL when user navigates manually
+    if (window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
@@ -23,7 +43,7 @@ function App() {
             <div>
               <h1 className="text-lg font-semibold tracking-tight">ShareBoard</h1>
               <p className="hidden text-xs text-slate-500 sm:block dark:text-slate-400">
-                Share text, audio, and images with a code
+                Share text, audio, and files with a code
               </p>
             </div>
           </div>
@@ -32,7 +52,7 @@ function App() {
             <nav className="flex rounded-lg border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
               <button
                 type="button"
-                onClick={() => setMode('create')}
+                onClick={() => switchMode('create')}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   mode === 'create'
                     ? 'bg-indigo-500 text-white'
@@ -43,7 +63,7 @@ function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode('view')}
+                onClick={() => switchMode('view')}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   mode === 'view'
                     ? 'bg-indigo-500 text-white'
@@ -60,11 +80,7 @@ function App() {
               aria-label="Toggle theme"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              {theme === 'dark' ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -90,7 +106,11 @@ function App() {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
           >
-            {mode === 'create' ? <CreateNote /> : <ViewNote />}
+            {mode === 'create' ? (
+              <CreateNote />
+            ) : (
+              <ViewNote initialCode={autoCode} />
+            )}
           </motion.div>
         </AnimatePresence>
       </main>

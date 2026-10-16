@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -17,8 +17,8 @@ import {
 import axios from 'axios';
 import { API_URL } from '../config';
 
-function ViewNote() {
-  const [code, setCode] = useState('');
+function ViewNote({ initialCode = '' }) {
+  const [code, setCode] = useState(initialCode || '');
   const [password, setPassword] = useState('');
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [noteData, setNoteData] = useState(null);
@@ -31,6 +31,8 @@ function ViewNote() {
   const [textCopied, setTextCopied] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
 
+  const autoFetchedRef = useRef(false);
+
   useEffect(() => {
     return () => {
       if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl);
@@ -38,6 +40,17 @@ function ViewNote() {
       if (fileUrl?.startsWith('blob:')) URL.revokeObjectURL(fileUrl);
     };
   }, [imageUrl, audioUrl, fileUrl]);
+
+  // Auto-fetch on mount if code came from URL
+  useEffect(() => {
+    if (autoFetchedRef.current) return;
+    if (initialCode && initialCode.length === 6) {
+      autoFetchedRef.current = true;
+      setCode(initialCode);
+      fetchNote(initialCode, null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
 
   const resetResult = () => {
     setNoteData(null);
@@ -50,8 +63,10 @@ function ViewNote() {
     setTextCopied(false);
   };
 
-  const fetchNote = async (providedPassword = null) => {
-    if (!code || code.length !== 6) {
+  const fetchNote = async (codeOverride = null, providedPassword = null) => {
+    const activeCode = (codeOverride || code || '').toUpperCase();
+
+    if (!activeCode || activeCode.length !== 6) {
       setError('Please enter a valid 6-character code');
       return;
     }
@@ -67,7 +82,7 @@ function ViewNote() {
     setTextCopied(false);
 
     try {
-      const infoResponse = await axios.get(`${API_URL}/audio/info/${code}`);
+      const infoResponse = await axios.get(`${API_URL}/audio/info/${activeCode}`);
       const info = infoResponse.data;
 
       if (info.isExpired) {
@@ -83,7 +98,7 @@ function ViewNote() {
         return;
       }
 
-      let url = `${API_URL}/audio/${code}`;
+      let url = `${API_URL}/audio/${activeCode}`;
       if (providedPassword) {
         url += `?password=${encodeURIComponent(providedPassword)}`;
       }
@@ -133,7 +148,7 @@ function ViewNote() {
       return;
     }
     setShowPasswordInput(false);
-    fetchNote(password);
+    fetchNote(null, password);
   };
 
   const handleCodeChange = (e) => {
@@ -392,11 +407,7 @@ function ViewNote() {
 
                 {isPdf && (
                   <div className="overflow-hidden rounded-xl bg-white dark:bg-slate-900/70">
-                    <iframe
-                      title="PDF preview"
-                      src={fileUrl}
-                      className="h-[28rem] w-full"
-                    />
+                    <iframe title="PDF preview" src={fileUrl} className="h-[28rem] w-full" />
                   </div>
                 )}
 
